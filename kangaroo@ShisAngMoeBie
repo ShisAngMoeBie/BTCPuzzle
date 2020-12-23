@@ -1,0 +1,417 @@
+#!/usr/bin/python
+
+# by 57fe (fe57.org/forum/thread.php?board=4&thema=1#1)
+
+#######################
+# print() compatibility python 2/3
+from __future__ import print_function
+#######################
+# settings
+
+pow2pubkey = 120 # bits/order/pow2/exp key
+
+pow2kangaroo = 3 # discriminator
+
+Ntimeit = 10 # times for avg runtime
+
+prngseed = 0 # 0,any
+flag_debug = 0 # 0,1,2,3
+
+#######################
+# high order pubkeys
+
+pubkeys = {
+	  16: ('029d8c5d35231d75eb87fd2c5f05f65281ed9573dc41853288c62ee94eb2590b7a' , True)
+	, 20: ('033c4a45cbd643ff97d77f41ea37e843648d50fd894b864b0d52febc62f6454f7c', True)
+	, 24: ('036ea839d22847ee1dce3bfc5b11f6cf785b0682db58c35b63d1342eb221c3490c', True)
+	, 25: ('03057fbea3a2623382628dde556b2a0698e32428d3cd225f3bd034dca82dd7455a', True)
+	, 30: ('030d282cf2ff536d2c42f105d0b8588821a915dc3f9a05bd98bb23af67a2e92a5b', True)
+	, 32: ('0209c58240e50e3ba3f833c82655e8725c037a2294e14cf5d73a5df8d56159de69', True)
+	, 35: ('02f6a8148a62320e149cb15c544fe8a25ab483a0095d2280d03b8a00a7feada13d', True)
+	, 40: ('03a2efa402fd5268400c77c20e574ba86409ededee7c4020e4b9f0edbee53de0d4', True)
+	, 44: ('025e466e97ed0e7910d3d90ceb0332df48ddf67d456b9e7303b50a3d89de357336', True)
+	, 45: ('026ecabd2d22fdb737be21975ce9a694e108eb94f3649c586cc7461c8abf5da71a', True)
+	, 48: ('0291bee5cf4b14c291c650732faa166040e4c18a14731f9a930c1e87d3ec12debb', True)
+	, 50: ('03f46f41027bbf44fafd6b059091b900dad41e6845b2241dc3254c7cdd3c5a16c6', True)
+	, 55: ('0385a30d8413af4f8f9e6312400f2d194fe14f02e719b24c3f83bf1fd233a8f963', True)
+	, 56: ('033f2db2074e3217b3e5ee305301eeebb1160c4fa1e993ee280112f6348637999a', True)
+	, 60: ('0348e843dc5b1bd246e6309b4924b81543d02b16c8083df973a89ce2c7eb89a10d', True)
+	, 65: ('0230210c23b1a047bc9bdbb13448e67deddc108946de6de639bcc75d47c0216b1b', True)
+	, 70: ('0290e6900a58d33393bc1097b5aed31f2e4e7cbd3e5466af958665bc0121248483', True)
+	, 75: ('03726b574f193e374686d8e12bc6e4142adeb06770e0a2856f5e4ad89f66044755', True)
+	, 80: ('037e1238f7b1ce757df94faa9a2eb261bf0aeb9f84dbf81212104e78931c2a19dc', True)
+	, 85: ('0329c4574a4fd8c810b7e42a4b398882b381bcd85e40c6883712912d167c83e73a', True)
+	, 90: ('035c38bd9ae4b10e8a250857006f3cfd98ab15a6196d9f4dfd25bc7ecc77d788d5', True)
+	, 95: ('02967a5905d6f3b420959a02789f96ab4c3223a2c4d2762f817b7895c5bc88a045', True)
+	, 100: ('03d2063d40402f030d4cc71331468827aa41a8a09bd6fd801ba77fb64f8e67e617', True)
+	, 105: ('03bcf7ce887ffca5e62c9cabbdb7ffa71dc183c52c04ff4ee5ee82e0c55c39d77b', True)
+	, 110: ('0309976ba5570966bf889196b7fdf5a0f9a1e9ab340556ec29f8bb60599616167d', True)
+	, 115: ('0248d313b0398d4923cdca73b8cfa6532b91b96703902fc8b32fd438a3b7cd7f55', True)
+	, 120: ('02ceb6cbbcdbdf5ef7150682150f4ce2c6f4807b349827dcdbdd1f2efa885a2630', False)
+	, 125: ('0233709eb11e0d4439a729f21c2c443dedb727528229713f0065721ba8fa46f00e',False)
+	, 130: ('02145d2611c823a396ef6712ce0f712f09b9b4f3135e3e0aa3230fb9b6d08d1e16', False)
+	, 135: ('031f6a332d3c5c4f2de2378c012f429cd109ba07d69690c6c701b6bb87860d6640', False)
+	, 140: ('03afdda497369e219a2c1c369954a930e4d3740968e5e4352475bcffce3140dae5', False)
+	, 145: ('03137807790ea7dc6e97901c2bc87411f45ed74a5629315c4e4b03a0a102250c49', False)
+	, 150: ('035cd1854cae45391ca4ec428cc7e6c7d9984424b954209a8eea197b9e364c05f6', False)
+	, 155: ('02e0a8b039282faf6fe0fd769cfbc4b6b4cf8758ba68220eac420e32b91ddfa673', False)
+	, 160: ('0233709eb11e0d4439a729f21c2c443dedb727528229713f0065721ba8fa46f00e', False)
+}
+
+#######################
+# import
+
+import os
+import sys
+import time
+import random
+
+try:
+	# https://www.lfd.uci.edu/~gohlke/pythonlibs/
+	import gmpy2
+except:
+	flag_gmpy2 = False
+	print("[warn] gmpy2 not found. raw python is slow!")
+else:
+	flag_gmpy2 = True
+
+try:
+	from coincurve import PrivateKey, PublicKey
+	from coincurve.utils import int_to_bytes, hex_to_bytes, bytes_to_int, bytes_to_hex, int_to_bytes_padded
+except:
+	flag_coincurve = False
+	#print("[warn] coincurve not found. random pubkey not available!")
+else:
+	flag_coincurve = True
+
+
+if 0:
+	from multiprocessing import Pool
+	from multiprocessing import cpu_count
+	from multiprocessing import freeze_support
+
+#######################
+# python 2,3
+
+#import sys
+#import time
+if sys.version_info[0] == 2:
+	from time import clock
+else:
+	from time import perf_counter
+	from time import process_time
+	clock = time.perf_counter
+	xrange=range
+	raw_input=input
+
+#######################
+# secp256k1
+
+#modulo	= 2**256-2**32-2**9-2**8-2**7-2**6-2**4-1
+modulo	= 115792089237316195423570985008687907853269984665640564039457584007908834671663
+order	= 115792089237316195423570985008687907852837564279074904382605163141518161494337
+#modulo	= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+#order	= 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+Gx	= 55066263022277343669578718895168534326250603453777594175500187360389116729240
+Gy	= 32670510020758816978083085130507043184471273380659243275938904335757337482424
+#Gx	= 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+#Gy	= 0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8
+
+class Point:
+	def __init__(self, x=0, y=0):
+		self.x = x
+		self.y = y
+
+
+Gp = Point(Gx,Gy)
+Zp = Point(0,0) # zero-point, infinite in real x,y - plane
+
+#######################
+# functions
+
+# return (g, x, y) a*x + b*y = gcd(x, y)
+def egcd(a, b):
+	if a == 0:
+		return (b, 0, 1)
+	else:
+		g, x, y = egcd(b % a, a)
+		return (g, y - (b // a) * x, x)
+
+
+def rev(b, n=modulo):
+	while b < 0:
+		b += n
+	g, x, _ = egcd(b, n)
+	if g == 1:
+		return x % n
+		
+
+def mul2(P, p=modulo):
+	R = Point()
+	if flag_gmpy2:
+		c = 3 * P.x * P.x * gmpy2.invert(2*P.y, p) % p
+	else:
+		c = 3 * P.x * P.x * rev(2*P.y, p) % p
+	R.x = (c*c - 2*P.x) % p
+	R.y = (c*(P.x - R.x) - P.y) % p
+	return R
+
+
+# 1I, 3M
+def add(P, Q, p=modulo):
+	R = Point()
+	dx = Q.x - P.x
+	dy = Q.y - P.y	
+	if flag_gmpy2: # 1I, 1M
+		c = dy * gmpy2.invert(dx, p) % p
+	else:
+		c = dy * rev(dx, p) % p
+	R.x = (c*c - P.x - Q.x) % p # 1M
+	R.y = (c*(P.x - R.x) - P.y) % p # 1M
+	return R
+
+
+def mulk(k, P=Gp, p=modulo):
+	if k == 0: return Zp
+	elif k == 1: return P
+	elif (k % 2 == 0):
+		return mulk(k/2, mul2(P, p), p)
+	else:
+		return add(P, mulk( (k-1)/2, mul2(P, p), p), p)
+
+
+def newX2Y(X, y_parity):
+	p = modulo
+
+	Y = 3
+	tmp = 1
+	while Y:
+		if Y & 1:
+			tmp = tmp*X % p
+		Y >>= 1
+		X = X*X % p
+
+	X = (tmp+7) % p
+
+	Y = (p+1)//4
+	tmp = 1
+	while Y:
+		if Y & 1:
+			tmp = tmp*X % p
+		Y >>= 1
+		X = X*X % p
+
+	Y = tmp
+
+	if Y%2 != y_parity:
+		Y = -Y % p
+
+	return Y
+
+
+def KANGAROO():
+
+	DP_rarity = 1 << ((pow2pubkey -  2*pow2kangaroo)//2 - 2)
+	if flag_debug > 0:
+		print("[DP_rarity] 1<<((pow2pub - 2*pow2k) -2) = 1<<((%s-2*%s)//2 -2) = %s" % (pow2pubkey,pow2kangaroo,DP_rarity))
+
+	jump_modulo = ((pow2pubkey-1) // 2) + pow2kangaroo
+	if flag_debug > 0:
+		print("[jump_modulo] (pow2pub-1)//2 + pow2k = (%s-1)//2 + %s = %s" % (pow2pubkey,pow2kangaroo,jump_modulo))
+
+	T, t, dt = [], [], []
+	W, w, dw = [], [], []
+
+	if flag_debug > 0:
+		print( '[t] 3<<(pow2pub-2) + rng(1,(1<<(pow2pub-1))) = 3<<(%s-2) + rng(1,(1<<(%s-1))) = %s + %s' %
+			( pow2pubkey, pow2pubkey
+			 ,3<<(pow2pubkey-2), random.randint(1, (1<<(pow2pubkey-1)))
+			)
+		)
+
+	for k in range(Nt):
+		t.append((3 << (pow2pubkey - 2)) + random.randint(1, (1 << (pow2pubkey - 1))))#-(1 << (pow2pubkey - 2)) )
+		T.append(mulk(t[k]))
+		dt.append(0)
+	for k in range(Nw):
+		w.append(random.randint(1, (1 << (pow2pubkey - 1))))
+		W.append(add(W0,mulk(w[k])))
+		dw.append(0)
+
+	print('[+] T+W ready')
+
+	n_jump = last_jump = 0
+	prvkey = False;
+	A, Ak, B, Bk = [], [], [], []
+	t0 = t1 = t2 = time.time()
+
+	while (1):
+
+		if flag_debug > 2: print('[new_loop] %s jumps'%n_jump)
+		
+		for k in range(Nt):
+			if flag_debug > 2: print('[k/Nt] %s/%s'%(k+1,Nt))
+			n_jump += 1
+			pw = T[k].x % jump_modulo
+			pw = int(pw)
+			dt[k] = 1 << pw
+
+			if T[k].x % (DP_rarity) == 0:
+				A.append(T[k].x)
+				Ak.append(t[k])
+				if flag_debug > 1:
+					print('[tame] A=%s, B=%s'%(len(A),len(B)))
+				if flag_debug > 0:
+					save2file('tame.txt', 'a', '%064x %s\n'%(T[k].x,t[k]) )
+				result = list(set(A) & set(B))
+				if len(result) > 0:
+					sol_kt = A.index(result[0])
+					sol_kw = B.index(result[0])
+					prvkey = Ak[sol_kt] - Bk[sol_kw]
+
+			if prvkey: break
+			t[k] += dt[k]
+			T[k] = add(P[pw], T[k])
+		if prvkey: break			
+		for k in range(Nw):
+			if flag_debug > 2: print('[k/Nw] %s/%s'%(k+1,Nw))
+			n_jump += 1
+			pw = W[k].x % jump_modulo
+			pw = int(pw)
+			dw[k] = 1 << pw
+
+			if W[k].x % (DP_rarity) == 0:
+				B.append(W[k].x)
+				Bk.append(w[k])
+				if flag_debug > 1:
+					print('[wild] A=%s, B=%s'%(len(A),len(B)))
+				if flag_debug > 0:
+					save2file('wild.txt', 'a', '%064x %s\n'%(W[k].x,w[k]) )
+				result = list(set(A) & set(B))
+				if len(result) > 0:
+					sol_kt = A.index(result[0])
+					sol_kw = B.index(result[0])
+					prvkey = Ak[sol_kt] - Bk[sol_kw]
+
+			if prvkey: break
+			w[k] += dw[k]
+			W[k] = add(P[pw], W[k])
+		if prvkey: break
+		t2 = time.time()
+		if (t2-t1) > 1:
+			if sys.version_info[0] == 2:
+				print('\r[~] %.1f j/s'%((n_jump-last_jump)/(t2-t1)), end='')
+				sys.stdout.flush()
+			else:
+				print('\r[~] %.1f j/s'%((n_jump-last_jump)/(t2-t1)), end='', flush=True )
+			t1 = t2
+			last_jump = n_jump
+
+	return prvkey, n_jump, (time.time()-t0)
+
+
+
+def save2file(path, mode, data):
+	fp = open(path, mode)
+	if type(data) in (list,tuple,dict):
+		fp.writelines(data)
+	else:
+	#elif type(data) in (str,int):
+		fp.write(data)
+	fp.close()
+
+
+def usage():
+	print('[usage] %s [bits] [pubkey]'%(sys.argv[0]))
+	print('        %s 32'%(sys.argv[0]))
+	print('        %s 32 %s'%(sys.argv[0],pubkeys[32][0]))
+	exit(-1)
+
+#######################
+#main
+
+if __name__ == '__main__':
+
+	#print('[os] %s' % os.name)
+	if os.name == 'nt':
+		#freeze_support()
+		pass
+
+	print("[################################################]")
+	print("[# ECDSA Pollard-kangaroo PrivKey Recovery Tool #]")
+	print("[#          based on code by 57fe 2019          #]")
+	print("[#                  singlecore                  #]");
+	#print("[#                  multicore                   #]");
+	print("[################################################]")
+
+	if len(sys.argv) > 1 and str(sys.argv[1]) in ('--help','-h','/?') :
+		usage()
+
+	print('[date] {}'.format(time.ctime()))
+	print("[~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~]")
+
+	if prngseed in (0,'0',False,'False','false',''):
+		prngseed = random.randint(1,2**32)
+	random.seed(prngseed)
+	print('[PRNGseed] %s' % prngseed)
+
+	if len(sys.argv) > 1 :
+		try:
+			pow2pubkey=int(sys.argv[1])
+		except:
+			usage()
+		if pow2pubkey < 1 or pow2pubkey > 256 :
+			print("[error] bits must be in range 1..256!")
+			usage()
+		print('[bits] 2^%s %s' % (pow2pubkey, '(warn: too big!)' if pow2pubkey>50 else ''))
+
+		if len(sys.argv) > 2 :
+			prvkey0 = False
+			pubkey0 = str(sys.argv[2])
+			print('[i] pubkey#%s loaded from argv2' % pow2pubkey)
+		elif flag_coincurve:
+			prvkey0 = random.randint(1,2**pow2pubkey)
+			pubkey0 = bytes_to_hex(PublicKey.from_secret(int_to_bytes_padded(prvkey0)).format(1))
+			#pubkey0 = bytes_to_hex(PublicKey.from_secret(int_to_bytes_padded(prvkey0)).format(0))
+			print('[i] pubkey#%s randomly generated' % pow2pubkey)
+		else:
+			pubkey0, prvkey0 = pubkeys[pow2pubkey]
+			print('[i] pubkey#%s loaded from default table' % pow2pubkey)
+	else:
+		print('[bits] 2^%s %s' % (pow2pubkey, '(warn: too big!)' if pow2pubkey>50 else ''))
+		pubkey0, prvkey0 = pubkeys[pow2pubkey]
+		print('[i] pubkey#%s loaded from default table' % pow2pubkey)
+	
+	if prvkey0 not in (0,'0',False,'False','false',''):
+		print('[prvkey#%s] 0x%064x' % (pow2pubkey,prvkey0))
+	print('[pubkey#%s] %s' % (pow2pubkey,pubkey0))
+
+	#calc Y if pubkey is compress
+	if len(pubkey0)==130:
+		X = int(pubkey0[2:66], 16)
+		Y = int(pubkey0[66:],16)
+		print("[format] uncompressed")
+	elif len(pubkey0)==66:
+		X = int(pubkey0[2:66], 16)
+		Y = newX2Y(X,int(pubkey0[:2])-2)
+		print("[format] compressed")
+	else:
+		print("[error] pubkey len(66/130) invalid!")
+		usage()
+
+	print("[Xcoordinate] %064x" % X)
+	print("[Ycoordinate] %064x" % Y)
+
+	W0 = Point(X,Y)
+
+	print("[~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~]")
+	starttime = time.time()
+
+	P = [Gp]
+	for k in range(255): P.append(mul2(P[k]))	
+	print('[+] P-table ready')
+	
+	Nt = Nw = 2**pow2kangaroo
+	if flag_debug > 0:
+		print("[range(L..U)] 1..2^%s(0x%x)" % (pow2pubkey, 2**pow2pubkey))
+		print("[w=U-L] 0x%x ; w/2=0x%x" % (2**pow2pubkey, 2**
